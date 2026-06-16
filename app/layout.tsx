@@ -1,15 +1,21 @@
 import type { Metadata } from "next";
-import { Newsreader, Young_Serif } from "next/font/google";
+import { Fraunces, Inter, JetBrains_Mono } from "next/font/google";
+import Footer from "@/components/layout/Footer";
+import Nav from "@/components/layout/Nav";
 import "./globals.css";
 
-const youngSerif = Young_Serif({
-  variable: "--font-young-serif",
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
   subsets: ["latin"],
-  weight: "400",
 });
 
-const newsreader = Newsreader({
-  variable: "--font-newsreader",
+const inter = Inter({
+  variable: "--font-inter",
+  subsets: ["latin"],
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-jetbrains-mono",
   subsets: ["latin"],
 });
 
@@ -26,9 +32,13 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${youngSerif.variable} ${newsreader.variable} h-full`}
+      className={`${fraunces.variable} ${inter.variable} ${jetbrainsMono.variable} h-full`}
     >
-      <body className="min-h-full flex flex-col antialiased">{children}</body>
+      <body className="min-h-full flex flex-col antialiased">
+        <Nav />
+        <div className="flex flex-1 flex-col">{children}</div>
+        <Footer />
+      </body>
     </html>
   );
 }

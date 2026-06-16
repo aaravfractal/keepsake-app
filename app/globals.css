@@ -1,32 +1,57 @@
 @import "tailwindcss";
 
 :root {
-  --parchment: #f0ebe3;
-  --ink: #2c2824;
-  --folio: #6e645a;
-  --mist: #ddd6cc;
-  --brass: #85735e;
-  --wax: #7c2d2a;
-  --wax-light: #9a3a36;
-  --wax-shadow: #5a1f1d;
-  --leaf: #f7f3ec;
+  --paper: #f3ecdd;
+  --paper-2: #eae0cc;
+  --ink: #2a2520;
+  --ink-soft: #6b6253;
+  --wax: #7b2d26;
+  --brass: #9a7b4f;
+  --radius: 14px;
+  --radius-sm: 8px;
+  --shadow-sm: 0 1px 2px rgba(42, 37, 32, 0.06), 0 2px 8px rgba(42, 37, 32, 0.04);
+  --shadow-lg: 0 8px 30px rgba(42, 37, 32, 0.1);
+  --maxw: 1120px;
+  --gutter: clamp(1.25rem, 5vw, 2.5rem);
+  --font-display: var(--font-fraunces);
+  --font-body: var(--font-inter);
+  --font-mono: var(--font-jetbrains-mono);
+  --font-reading: var(--font-fraunces);
+  --line: rgba(42, 37, 32, 0.12);
+
+  /* Legacy aliases — keep existing app screens working until Prompt 3 */
+  --parchment: var(--paper);
+  --leaf: var(--paper-2);
+  --folio: var(--ink-soft);
+  --mist: color-mix(in srgb, var(--ink) 12%, transparent);
 }
 
 @theme inline {
-  --color-background: var(--parchment);
+  --color-background: var(--paper);
   --color-foreground: var(--ink);
-  --color-muted: var(--folio);
-  --color-mist: var(--mist);
-  --color-brass: var(--brass);
+  --color-muted: var(--ink-soft);
+  --color-paper: var(--paper);
+  --color-paper-2: var(--paper-2);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
   --color-wax: var(--wax);
-  --color-leaf: var(--leaf);
-  --color-parchment: var(--parchment);
-  --color-surface: var(--leaf);
+  --color-brass: var(--brass);
+  --color-mist: var(--mist);
+  --color-leaf: var(--paper-2);
+  --color-parchment: var(--paper);
+  --color-surface: var(--paper-2);
   --color-line: var(--mist);
-  --font-display: var(--font-young-serif);
-  --font-reading: var(--font-newsreader);
+  --font-display: var(--font-display);
+  --font-body: var(--font-body);
+  --font-mono: var(--font-mono);
   --font-family-display: var(--font-display);
+  --font-family-body: var(--font-body);
+  --font-family-mono: var(--font-mono);
   --font-family-reading: var(--font-reading);
+  --radius-theme: var(--radius);
+  --radius-theme-sm: var(--radius-sm);
+  --shadow-theme-sm: var(--shadow-sm);
+  --shadow-theme-lg: var(--shadow-lg);
 }
 
 @keyframes fade-up {
@@ -72,22 +97,6 @@
   }
 }
 
-.animate-fade-up {
-  animation: fade-up 0.55s ease-out both;
-}
-
-.animate-gentle-pulse {
-  animation: gentle-pulse 2.4s ease-in-out infinite;
-}
-
-.animate-certificate-unfold {
-  animation: certificate-unfold 0.75s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-.animate-story-surface {
-  animation: story-surface 1.35s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
 @keyframes wax-stamp {
   0% {
     opacity: 0;
@@ -106,6 +115,28 @@
   }
 }
 
+@keyframes ds-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.55s ease-out both;
+}
+
+.animate-gentle-pulse {
+  animation: gentle-pulse 2.4s ease-in-out infinite;
+}
+
+.animate-certificate-unfold {
+  animation: certificate-unfold 0.75s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-story-surface {
+  animation: story-surface 1.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 .animate-wax-stamp {
   animation: wax-stamp 0.72s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
@@ -115,49 +146,70 @@
   .animate-fade-up,
   .animate-certificate-unfold,
   .animate-gentle-pulse,
-  .animate-wax-stamp {
+  .animate-wax-stamp,
+  .ds-spinner {
     animation: none;
   }
 }
 
 body {
   color: var(--ink);
-  font-family: var(--font-newsreader), Georgia, "Times New Roman", serif;
-  background-color: var(--parchment);
+  font-family: var(--font-body), system-ui, sans-serif;
+  font-size: 1.0625rem;
+  line-height: 1.7;
+  background-color: var(--paper);
   background-image:
     radial-gradient(
       ellipse 130% 90% at 50% -30%,
-      rgba(255, 255, 255, 0.42),
+      rgba(255, 255, 255, 0.35),
       transparent 58%
     ),
-    radial-gradient(
-      ellipse 90% 50% at 100% 50%,
-      rgba(133, 115, 94, 0.06),
-      transparent 52%
-    ),
-    radial-gradient(
-      ellipse 80% 45% at 0% 80%,
-      rgba(133, 115, 94, 0.05),
-      transparent 50%
-    ),
-    url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.055'/%3E%3C/svg%3E");
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
   background-attachment: fixed;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-display), Georgia, serif;
+  font-weight: 400;
+  color: var(--ink);
 }
 
 ::selection {
   background: color-mix(in srgb, var(--wax) 18%, transparent);
 }
 
+.text-hero {
+  font-family: var(--font-display), Georgia, serif;
+  font-size: clamp(2.75rem, 6vw, 5rem);
+  font-weight: 400;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+
+.text-h2 {
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 2rem;
+  line-height: 1.15;
+}
+
+.text-caption {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.8125rem;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+}
+
 .paper-leaf {
-  background-color: var(--leaf);
+  background-color: var(--paper-2);
   background-image: linear-gradient(
     165deg,
     rgba(255, 255, 255, 0.55) 0%,
     rgba(255, 255, 255, 0) 42%
   );
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.65),
-    0 1px 2px rgba(44, 40, 36, 0.04);
+  box-shadow: var(--shadow-sm);
 }
 
 .wax-seal {
@@ -178,4 +230,18 @@ body {
     transform: none;
     transition: none;
   }
+}
+
+.ds-focus-ring:focus-visible {
+  outline: 2px solid var(--wax);
+  outline-offset: 2px;
+}
+
+.ds-spinner {
+  width: 1em;
+  height: 1em;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: white;
+  border-radius: 9999px;
+  animation: ds-spin 0.7s linear infinite;
 }

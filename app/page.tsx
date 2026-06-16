@@ -1,5 +1,5 @@
-import KeepsakeScreen from "./components/KeepsakeScreen";
+import LandingPage from "@/components/landing/LandingPage";
 
 export default function Home() {
-  return <KeepsakeScreen />;
+  return <LandingPage />;
 }
