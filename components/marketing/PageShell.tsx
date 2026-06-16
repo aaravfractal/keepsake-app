@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
 import Container from "@/components/ui/Container";
 import { Eyebrow } from "@/components/ui";
 
@@ -11,14 +12,32 @@ interface PageShellProps {
 
 export default function PageShell({ eyebrow, title, intro, children }: PageShellProps) {
   return (
-    <main className="py-12 md:py-16">
-      <Container className="max-w-3xl">
-        {eyebrow ? <Eyebrow>{eyebrow}</Eyebrow> : null}
-        <h1 className="text-h2 mt-3 md:text-[2.25rem]">{title}</h1>
-        {intro ? <p className="mt-6 text-lg text-ink-soft">{intro}</p> : null}
-        <div className="mt-10 space-y-10">{children}</div>
+    <main className="py-14 md:py-20">
+      <Container>
+        <div className="mx-auto w-full max-w-[42.5rem] text-left">
+          {eyebrow ? <Eyebrow>{eyebrow}</Eyebrow> : null}
+          <h1 className="text-h2 mt-4 font-display md:text-[2.25rem]">{title}</h1>
+          {intro ? (
+            <p className="mt-6 text-[1.0625rem] leading-[1.7] text-ink-soft">{intro}</p>
+          ) : null}
+          <div className="mt-12 space-y-12 text-[1.0625rem] leading-[1.7]">{children}</div>
+          <div className="mt-12 border-t border-ink/[0.08] pt-8">
+            <BackHomeLink />
+          </div>
+        </div>
       </Container>
     </main>
+  );
+}
+
+export function BackHomeLink() {
+  return (
+    <Link
+      href="/"
+      className="ds-focus-ring inline-flex items-center text-sm text-ink-soft transition-colors hover:text-wax"
+    >
+      ← Back home
+    </Link>
   );
 }
 
@@ -32,18 +51,7 @@ export function PageSection({ id, title, children }: PageSectionProps) {
   return (
     <section id={id} className="scroll-mt-24">
       <h2 className="font-display text-xl text-ink md:text-2xl">{title}</h2>
-      <div className="mt-3 text-ink-soft">{children}</div>
+      <div className="mt-4 text-ink-soft">{children}</div>
     </section>
-  );
-}
-
-export function PlaceholderBlock({ label }: { label: string }) {
-  return (
-    <div className="rounded-[var(--radius)] border border-dashed border-ink/20 bg-paper-2/50 px-5 py-4">
-      <p className="text-caption uppercase">{label}</p>
-      <p className="mt-2 text-sm text-ink-soft">
-        Placeholder for content to be added later.
-      </p>
-    </div>
   );
 }

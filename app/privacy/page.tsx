@@ -1,13 +1,14 @@
 import Link from "next/link";
-import PageShell, { PageSection, PlaceholderBlock } from "@/components/marketing/PageShell";
+import PageShell, { PageSection } from "@/components/marketing/PageShell";
+import { site } from "@/lib/site";
 
 export const metadata = {
   title: "Privacy — Keepsake",
   description: "How Keepsake keeps your memories private, encrypted, and yours.",
 };
 
-const vaultCtaClass =
-  "ds-focus-ring inline-flex items-center justify-center rounded-[var(--radius-sm)] bg-wax px-5 py-2.5 text-sm font-medium text-white shadow-[var(--shadow-sm)] transition-all duration-200 hover:-translate-y-px hover:brightness-[0.94] motion-reduce:transition-none";
+const linkClass =
+  "text-wax underline decoration-wax/30 underline-offset-4 transition-colors hover:decoration-wax ds-focus-ring rounded-sm";
 
 export default function PrivacyPage() {
   return (
@@ -45,13 +46,16 @@ export default function PrivacyPage() {
         </p>
       </PageSection>
 
-      <PlaceholderBlock label="[FORMAL_POLICY]" />
-
-      <div className="pt-2">
-        <Link href="/app" className={vaultCtaClass}>
-          Open your vault
-        </Link>
-      </div>
+      <PageSection title="A note on policy">
+        <p>
+          Keepsake is an early product on testnet — a full legal policy will follow at launch,
+          but the principles above are our commitment. Questions? Email{" "}
+          <a href={`mailto:${site.contactEmail}`} className={linkClass}>
+            {site.contactEmail}
+          </a>
+          .
+        </p>
+      </PageSection>
     </PageShell>
   );
 }

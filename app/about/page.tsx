@@ -1,5 +1,6 @@
 import Link from "next/link";
-import PageShell, { PageSection, PlaceholderBlock } from "@/components/marketing/PageShell";
+import PageShell, { PageSection } from "@/components/marketing/PageShell";
+import { site } from "@/lib/site";
 
 export const metadata = {
   title: "About — Keepsake",
@@ -8,6 +9,9 @@ export const metadata = {
 
 const vaultCtaClass =
   "ds-focus-ring inline-flex items-center justify-center rounded-[var(--radius-sm)] bg-wax px-5 py-2.5 text-sm font-medium text-white shadow-[var(--shadow-sm)] transition-all duration-200 hover:-translate-y-px hover:brightness-[0.94] motion-reduce:transition-none";
+
+const linkClass =
+  "text-wax underline decoration-wax/30 underline-offset-4 transition-colors hover:decoration-wax ds-focus-ring rounded-sm";
 
 export default function AboutPage() {
   return (
@@ -35,9 +39,15 @@ export default function AboutPage() {
         </p>
       </PageSection>
 
-      <PlaceholderBlock label="[TEAM/CONTACT]" />
+      <p className="text-ink-soft">
+        Built solo with AI on 0G. Contact:{" "}
+        <a href={`mailto:${site.contactEmail}`} className={linkClass}>
+          {site.contactEmail}
+        </a>
+        .
+      </p>
 
-      <div className="pt-2">
+      <div>
         <Link href="/app" className={vaultCtaClass}>
           Open your vault
         </Link>

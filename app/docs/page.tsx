@@ -16,6 +16,9 @@ const loopSteps = [
   "Provenance proof on 0G Chain",
 ] as const;
 
+const monoChipClass =
+  "rounded-[var(--radius-sm)] border border-ink/10 bg-paper px-3 py-2 font-mono text-xs leading-snug text-ink";
+
 export default function DocsPage() {
   return (
     <PageShell
@@ -24,15 +27,21 @@ export default function DocsPage() {
       intro="Keepsake runs on three load-bearing layers of the 0G network. Remove any one and the product stops being itself."
     >
       <PageSection title="The loop">
-        <div className="overflow-x-auto rounded-[var(--radius)] border border-ink/10 bg-paper-2/60 p-5">
-          <div className="flex min-w-[32rem] flex-wrap items-center gap-2 text-sm">
+        <ol className="space-y-2 md:hidden">
+          {loopSteps.map((step, index) => (
+            <li key={step} className="flex items-start gap-3">
+              <span className="text-caption mt-2 shrink-0 tabular-nums">{index + 1}.</span>
+              <span className={monoChipClass}>{step}</span>
+            </li>
+          ))}
+        </ol>
+        <div className="hidden rounded-[var(--radius)] border border-ink/10 bg-paper-2/60 p-5 md:block">
+          <div className="flex flex-wrap items-center gap-2">
             {loopSteps.map((step, index) => (
               <span key={step} className="inline-flex items-center gap-2">
-                <span className="rounded-[var(--radius-sm)] border border-ink/10 bg-paper px-3 py-1.5 font-mono text-xs text-ink">
-                  {step}
-                </span>
+                <span className={monoChipClass}>{step}</span>
                 {index < loopSteps.length - 1 ? (
-                  <span className="text-caption" aria-hidden="true">
+                  <span className="font-mono text-xs text-ink-soft" aria-hidden="true">
                     →
                   </span>
                 ) : null}
@@ -53,7 +62,7 @@ export default function DocsPage() {
         <p>
           Reflection runs in a trusted execution enclave. When you ask a question, Keepsake
           decrypts your relevant memories, sends them to{" "}
-          <code className="rounded bg-paper-2 px-1.5 py-0.5 font-mono text-xs text-ink">
+          <code className="rounded bg-paper-2 px-1.5 py-0.5 font-mono text-[0.8125rem] text-ink">
             qwen2.5-omni
           </code>{" "}
           inside the enclave, and each run returns a sealed-inference receipt (provider + request
@@ -65,10 +74,13 @@ export default function DocsPage() {
         <p>
           Provenance proofs for every memory — root hash, owner, timestamp — plus the reflection
           certificate tying each story to the onchain memories it drew from. Built on Agentic ID
-          identity; iNFT-ready (ERC-7857).
+          identity; iNFT-ready (
+          <code className="font-mono text-[0.8125rem] text-ink">ERC-7857</code>).
         </p>
-        <p className="mt-3 font-mono text-xs text-ink-soft">
-          chainscan-galileo.0g.ai · indexer-storage-testnet-turbo.0g.ai
+        <p className="mt-4 font-mono text-[0.8125rem] leading-relaxed text-ink-soft">
+          chainscan-galileo.0g.ai
+          <br />
+          indexer-storage-testnet-turbo.0g.ai
         </p>
       </PageSection>
 
@@ -86,9 +98,10 @@ export default function DocsPage() {
           Clone the repo, add your keys, and run the full loop on your machine. See the README for
           environment variables and setup:
         </p>
-        <pre className="mt-4 overflow-x-auto rounded-[var(--radius-sm)] border border-ink/10 bg-paper-2/80 p-4 font-mono text-xs leading-relaxed text-ink">
+        <pre className="mt-4 max-w-full overflow-x-auto rounded-[var(--radius-sm)] border border-ink/10 bg-paper-2/80 p-4 font-mono text-[0.8125rem] leading-relaxed text-ink">
           {`npm install
-# .env.local: PRIVATE_KEY, OG_API_KEY, KV_REST_API_URL, KV_REST_API_TOKEN
+# .env.local: PRIVATE_KEY, OG_API_KEY,
+#            KV_REST_API_URL, KV_REST_API_TOKEN
 npm run dev`}
         </pre>
         <p className="mt-4">

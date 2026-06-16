@@ -62,3 +62,5 @@ Freemium consumer SaaS — free tier, paid tier ($5–10/mo) for unlimited memor
 ---
 
 *Keepsake — your memories, reflected back to you, and provably yours forever.*
+
+**Connect:** [X @keepsake_0g](https://x.com/keepsake_0g) · [keepsakebizofficial@gmail.com](mailto:keepsakebizofficial@gmail.com)

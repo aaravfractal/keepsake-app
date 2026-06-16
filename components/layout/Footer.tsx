@@ -34,9 +34,8 @@ const columns = [
   {
     title: "Connect",
     links: [
-      { label: "X", href: site.xUrl, external: true, placeholder: true },
-      { label: "Discord / Telegram", href: site.communityUrl, external: true, placeholder: true },
-      { label: "Email", href: `mailto:${site.contactEmail}`, external: true, placeholder: true },
+      { label: "X", href: site.xUrl, external: true },
+      { label: "Email", href: `mailto:${site.contactEmail}`, external: true },
     ],
   },
 ] as const;
@@ -76,12 +75,12 @@ function FooterLink({
   }
 
   if (external) {
+    const isMailto = href.startsWith("mailto:");
     return (
       <a
         href={href}
         className={className}
-        target="_blank"
-        rel="noopener noreferrer"
+        {...(!isMailto && { target: "_blank", rel: "noopener noreferrer" })}
       >
         {label}
       </a>

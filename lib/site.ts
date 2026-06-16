@@ -2,9 +2,8 @@ export const site = {
   name: "Keepsake",
   tagline: "Your memories. Yours forever.",
   repoUrl: "https://github.com/aaravfractal/keepsake-app",
-  xUrl: "[X_URL]",
-  communityUrl: "[COMMUNITY_URL]",
-  contactEmail: "[CONTACT_EMAIL]",
+  xUrl: "https://x.com/keepsake_0g",
+  contactEmail: "keepsakebizofficial@gmail.com",
 } as const;
 
 export const navLinks = [
