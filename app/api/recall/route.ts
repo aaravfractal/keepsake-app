@@ -1,7 +1,14 @@
 import { MemoryProvenance, readMemories } from "@/lib/memories";
-import { compute, indexer, OG_COMPUTE_MODEL, signer } from "@/lib/og";
+import { compute, OG_COMPUTE_MODEL } from "@/lib/og";
+import {
+  decryptMemoryRoot,
+  parseMemoryContentFromBuffer,
+} from "@/lib/storage";
 import { extractComputeProof } from "@/lib/trace";
+import type { ChatCompletionContentPart } from "openai/resources/chat/completions";
 import { NextResponse } from "next/server";
+
+export const maxDuration = 120;
 
 interface RecallRequest {
   query?: string;
@@ -9,36 +16,47 @@ interface RecallRequest {
 
 interface DecryptedMemory extends MemoryProvenance {
   text: string;
+  imageBase64?: string;
+  imageMimeType?: string;
 }
 
-function isRelevant(text: string, query: string): boolean {
+function isRelevant(memory: DecryptedMemory, query: string): boolean {
   const normalizedQuery = query.trim().toLowerCase();
   if (!normalizedQuery) {
     return true;
   }
 
-  const normalizedText = text.toLowerCase();
-  const tokens = normalizedQuery.split(/\s+/).filter((token) => token.length > 0);
+  const searchable = [
+    memory.text,
+    memory.hasPhoto ? "photo image picture" : "",
+  ]
+    .join(" ")
+    .toLowerCase();
 
-  return tokens.some((token) => normalizedText.includes(token));
+  const tokens = normalizedQuery.split(/\s+/).filter((token) => token.length > 0);
+  return tokens.some((token) => searchable.includes(token));
 }
 
 async function decryptMemory(
   memory: MemoryProvenance,
 ): Promise<DecryptedMemory | null> {
-  const [blob, downloadError] = await indexer.downloadToBlob(memory.rootHash, {
-    decryption: { privateKey: signer.privateKey },
-  });
+  try {
+    const bytes = await decryptMemoryRoot(memory.rootHash);
+    const parsed = parseMemoryContentFromBuffer(bytes);
 
-  if (downloadError || !blob) {
+    return {
+      ...memory,
+      text: parsed.text,
+      ...(parsed.image
+        ? {
+            imageMimeType: parsed.image.mime,
+            imageBase64: Buffer.from(parsed.image.bytes).toString("base64"),
+          }
+        : {}),
+    };
+  } catch {
     return null;
   }
-
-  const text = new TextDecoder().decode(
-    new Uint8Array(await blob.arrayBuffer()),
-  );
-
-  return { ...memory, text };
 }
 
 export async function POST(request: Request) {
@@ -66,16 +84,36 @@ export async function POST(request: Request) {
     }
 
     const relevant = query
-      ? decrypted.filter((memory) => isRelevant(memory.text, query))
+      ? decrypted.filter((memory) => isRelevant(memory, query))
       : decrypted;
     const memories = relevant.length > 0 ? relevant : decrypted;
 
     const memoryContext = memories
-      .map(
-        (memory, index) =>
-          `[${index + 1}] (${memory.createdAt})\n${memory.text}`,
-      )
+      .map((memory, index) => {
+        const photoNote = memory.imageBase64
+          ? "\n[includes a personal photo from this moment]"
+          : "";
+        return `[${index + 1}] (${memory.createdAt})\n${memory.text}${photoNote}`;
+      })
       .join("\n\n");
+
+    const userContent: ChatCompletionContentPart[] = [
+      {
+        type: "text",
+        text: `Query: ${query || "Tell me what these memories mean together."}\n\nMemories:\n${memoryContext}`,
+      },
+    ];
+
+    for (const memory of memories) {
+      if (memory.imageBase64 && memory.imageMimeType?.startsWith("image/")) {
+        userContent.push({
+          type: "image_url",
+          image_url: {
+            url: `data:${memory.imageMimeType};base64,${memory.imageBase64}`,
+          },
+        });
+      }
+    }
 
     const completionPromise = compute.chat.completions.create({
       model: OG_COMPUTE_MODEL,
@@ -83,11 +121,11 @@ export async function POST(request: Request) {
         {
           role: "system",
           content:
-            "You are Keepsake, a warm AI memory companion. Using the personal memories below, weave a short reflective story that connects them to the user's query. Be gentle, personal, and grounded only in the provided memories.",
+            "You are Keepsake, a warm AI memory companion. Using the personal memories below (including any attached photos), weave a short reflective story that connects them to the user's query. Be gentle, personal, and grounded only in the provided memories and images.",
         },
         {
           role: "user",
-          content: `Query: ${query || "Tell me what these memories mean together."}\n\nMemories:\n${memoryContext}`,
+          content: userContent,
         },
       ],
       max_tokens: 512,

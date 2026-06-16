@@ -1,6 +1,7 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { ChangeEvent, FormEvent, useCallback, useEffect, useState } from "react";
+import { compressImageForUpload } from "@/lib/compress-image";
 import ProvenanceSeal from "./ProvenanceSeal";
 import WaxSeal from "./WaxSeal";
 
@@ -9,6 +10,7 @@ interface MemoryProvenance {
   txHash: string;
   owner: string;
   createdAt: string;
+  hasPhoto?: boolean;
 }
 
 interface RecallProof {
@@ -70,8 +72,13 @@ function formatMemoryDate(iso: string): string {
 
 export default function KeepsakeScreen() {
   const [memoryText, setMemoryText] = useState("");
+  const [memoryImage, setMemoryImage] = useState<File | null>(null);
+  const [memoryImagePreview, setMemoryImagePreview] = useState<string | null>(
+    null,
+  );
   const [memorySaving, setMemorySaving] = useState(false);
   const [savedVisible, setSavedVisible] = useState(false);
+  const [photoWarning, setPhotoWarning] = useState<string | null>(null);
   const [saveStampKey, setSaveStampKey] = useState(0);
   const [memoryError, setMemoryError] = useState<string | null>(null);
 
@@ -111,6 +118,41 @@ export default function KeepsakeScreen() {
     void loadMemories();
   }, [loadMemories]);
 
+  useEffect(() => {
+    if (!memoryImage) {
+      setMemoryImagePreview(null);
+      return;
+    }
+
+    const previewUrl = URL.createObjectURL(memoryImage);
+    setMemoryImagePreview(previewUrl);
+
+    return () => {
+      URL.revokeObjectURL(previewUrl);
+    };
+  }, [memoryImage]);
+
+  function handleImageChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0] ?? null;
+    setMemoryImage(file);
+    setMemoryError(null);
+    setPhotoWarning(null);
+  }
+
+  function clearSelectedImage() {
+    setMemoryImage(null);
+  }
+
+  async function parseJsonResponse(response: Response) {
+    const raw = await response.text();
+
+    try {
+      return JSON.parse(raw) as Record<string, unknown>;
+    } catch {
+      throw new Error("Unexpected server response. Please try again.");
+    }
+  }
+
   async function handleSaveMemory(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const text = memoryText.trim();
@@ -120,24 +162,58 @@ export default function KeepsakeScreen() {
 
     setMemorySaving(true);
     setMemoryError(null);
+    setPhotoWarning(null);
     setSavedVisible(false);
 
     try {
-      const response = await fetch("/api/memory", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
-      });
+      let response: Response;
 
-      const data = (await response.json()) as { error?: string };
+      if (memoryImage) {
+        const compressed = await compressImageForUpload(memoryImage);
+        const formData = new FormData();
+        formData.append("text", text);
+        formData.append(
+          "image",
+          new File([compressed], "memory.jpg", { type: "image/jpeg" }),
+        );
 
-      if (!response.ok) {
-        throw new Error(data.error ?? "Could not save this moment.");
+        response = await fetch("/api/memory", {
+          method: "POST",
+          body: formData,
+        });
+      } else {
+        response = await fetch("/api/memory", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text }),
+        });
       }
 
+      const data = await parseJsonResponse(response);
+
+      if (!response.ok) {
+        throw new Error(
+          typeof data.error === "string"
+            ? data.error
+            : "Could not save this moment.",
+        );
+      }
+
+      const photoUploaded = data.photoUploaded === true;
+      const warning =
+        typeof data.warning === "string" ? data.warning : null;
+
       setMemoryText("");
+      setMemoryImage(null);
       setSavedVisible(true);
       setSaveStampKey((key) => key + 1);
+
+      if (memoryImage && !photoUploaded) {
+        setPhotoWarning(
+          warning ?? "Memory saved — photo couldn't be attached.",
+        );
+      }
+
       await loadMemories();
     } catch (error) {
       setMemoryError(
@@ -218,13 +294,50 @@ export default function KeepsakeScreen() {
                 rows={4}
                 className="w-full resize-none bg-transparent px-5 py-4 font-reading text-[1.0625rem] leading-[1.7] text-foreground placeholder:text-muted/75 focus:outline-none"
               />
+              <div className="border-t border-mist/80 px-4 py-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  <label className="cursor-pointer rounded-sm border border-mist px-3 py-2 text-sm text-muted transition-colors hover:bg-leaf/70 hover:text-foreground">
+                    Add a photo
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="sr-only"
+                      disabled={memorySaving}
+                      onChange={handleImageChange}
+                    />
+                  </label>
+                  {memoryImage ? (
+                    <button
+                      type="button"
+                      disabled={memorySaving}
+                      onClick={clearSelectedImage}
+                      className="text-sm text-muted transition-colors hover:text-foreground disabled:opacity-50"
+                    >
+                      Remove photo
+                    </button>
+                  ) : null}
+                </div>
+                {memoryImagePreview ? (
+                  <div className="mt-3">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={memoryImagePreview}
+                      alt="Selected memory photo"
+                      className="h-20 w-20 rounded-sm border border-mist object-cover"
+                    />
+                  </div>
+                ) : null}
+              </div>
               <div className="flex items-center justify-between gap-3 border-t border-mist/80 px-4 py-3">
-                <div className="min-h-10 flex-1">
+                <div className="min-h-10 flex-1 space-y-1">
                   {savedVisible ? (
                     <span className="inline-flex items-center gap-3 text-sm text-muted">
                       <WaxSeal size="sm" stamp key={saveStampKey} />
                       Saved to your private vault
                     </span>
+                  ) : null}
+                  {photoWarning ? (
+                    <p className="text-sm text-muted">{photoWarning}</p>
                   ) : null}
                   {memoryError ? (
                     <p className="text-sm text-wax/90">{memoryError}</p>
@@ -288,6 +401,14 @@ export default function KeepsakeScreen() {
                         )}
                       </span>
                       <LockIcon className="h-3.5 w-3.5 shrink-0 text-brass" />
+                      {memory.hasPhoto ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={`/api/memory/thumbnail/${encodeURIComponent(memory.rootHash)}`}
+                          alt=""
+                          className="h-10 w-10 shrink-0 rounded-sm border border-mist object-cover"
+                        />
+                      ) : null}
                       <time
                         dateTime={memory.createdAt}
                         className="text-[0.9375rem] tracking-[0.01em] text-foreground/90"

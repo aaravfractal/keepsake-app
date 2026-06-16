@@ -1,74 +1,126 @@
 import { appendMemory } from "@/lib/memories";
-import { indexer, OG_RPC_URL, signer } from "@/lib/og";
-import { MemData } from "@0gfoundation/0g-storage-ts-sdk";
+import { MemoryPayloadV1 } from "@/lib/memory-payload";
+import { signer } from "@/lib/og";
+import { uploadBundledMemory, uploadTextOnly } from "@/lib/storage";
 import { NextResponse } from "next/server";
+
+export const maxDuration = 60;
 
 interface MemoryRequest {
   text?: string;
 }
 
-function isSingleUploadResult(
-  result: unknown,
-): result is { txHash: string; rootHash: string; txSeq: number } {
-  return (
-    typeof result === "object" &&
-    result !== null &&
-    "rootHash" in result &&
-    typeof (result as { rootHash: unknown }).rootHash === "string"
-  );
+function jsonError(message: string, status: number) {
+  return NextResponse.json({ ok: false, error: message }, { status });
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "Unknown error";
+}
+
+async function saveProvenance(
+  upload: { rootHash: string; txHash: string },
+  hasPhoto: boolean,
+) {
+  const owner = await signer.getAddress();
+
+  await appendMemory({
+    rootHash: upload.rootHash,
+    txHash: upload.txHash,
+    owner,
+    createdAt: new Date().toISOString(),
+    ...(hasPhoto ? { hasPhoto: true } : {}),
+  });
 }
 
 export async function POST(request: Request) {
   try {
-    const body = (await request.json()) as MemoryRequest;
+    const contentType = request.headers.get("content-type") ?? "";
+
+    if (contentType.includes("multipart/form-data")) {
+      const form = await request.formData();
+      const text = String(form.get("text") ?? "").trim();
+      const imageField = form.get("image");
+
+      if (!text) {
+        return jsonError("text is required", 400);
+      }
+
+      const hasImage = imageField instanceof File && imageField.size > 0;
+      let upload: { rootHash: string; txHash: string };
+      let photoUploaded = false;
+
+      if (hasImage) {
+        const imageFieldTyped = imageField as File;
+        const buffer = Buffer.from(await imageFieldTyped.arrayBuffer());
+
+        try {
+          const payload: MemoryPayloadV1 = {
+            v: 1,
+            text,
+            image: {
+              mime: imageFieldTyped.type || "image/jpeg",
+              b64: buffer.toString("base64"),
+            },
+          };
+
+          upload = await uploadBundledMemory(payload);
+          photoUploaded = true;
+        } catch (photoError) {
+          try {
+            upload = await uploadTextOnly(text);
+          } catch (fallbackError) {
+            return jsonError(errorMessage(fallbackError), 500);
+          }
+
+          photoUploaded = false;
+
+          await saveProvenance(upload, false);
+
+          return NextResponse.json({
+            ok: true,
+            rootHash: upload.rootHash,
+            txHash: upload.txHash,
+            photoUploaded: false,
+            warning: "Memory saved — photo couldn't be attached.",
+          });
+        }
+      } else {
+        upload = await uploadTextOnly(text);
+      }
+
+      await saveProvenance(upload, photoUploaded);
+
+      return NextResponse.json({
+        ok: true,
+        rootHash: upload.rootHash,
+        txHash: upload.txHash,
+        photoUploaded,
+      });
+    }
+
+    let body: MemoryRequest;
+
+    try {
+      body = (await request.json()) as MemoryRequest;
+    } catch {
+      return jsonError("Invalid JSON body", 400);
+    }
+
     const text = body.text?.trim();
 
     if (!text) {
-      return NextResponse.json({ error: "text is required" }, { status: 400 });
+      return jsonError("text is required", 400);
     }
 
-    const owner = await signer.getAddress();
-    const file = new MemData(new TextEncoder().encode(text));
+    const upload = await uploadTextOnly(text);
+    await saveProvenance(upload, false);
 
-    const [result, uploadError] = await indexer.upload(
-      file,
-      OG_RPC_URL,
-      signer,
-      {
-        encryption: {
-          type: "ecies",
-          recipientPubKey: signer.signingKey.publicKey,
-        },
-      },
-    );
-
-    if (uploadError || !result) {
-      throw uploadError ?? new Error("Upload failed");
-    }
-
-    const { rootHash, txHash } = isSingleUploadResult(result)
-      ? result
-      : {
-          rootHash: result.rootHashes[0],
-          txHash: result.txHashes[0],
-        };
-
-    if (!rootHash || !txHash) {
-      throw new Error("Upload did not return rootHash and txHash");
-    }
-
-    const provenance = {
-      rootHash,
-      txHash,
-      owner,
-      createdAt: new Date().toISOString(),
-    };
-
-    await appendMemory(provenance);
-
-    return NextResponse.json({ rootHash, txHash });
+    return NextResponse.json({
+      rootHash: upload.rootHash,
+      txHash: upload.txHash,
+    });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return jsonError(errorMessage(error), 500);
   }
 }
