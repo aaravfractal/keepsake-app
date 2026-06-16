@@ -1,72 +1,87 @@
 import { appendMemory } from "@/lib/memories";
-import { indexer, OG_RPC_URL, signer } from "@/lib/og";
-import { MemData } from "@0gfoundation/0g-storage-ts-sdk";
+import { signer } from "@/lib/og";
+import {
+  MAX_IMAGE_BYTES,
+  uploadEncryptedImage,
+  uploadEncryptedText,
+  validateImageUpload,
+} from "@/lib/storage";
 import { NextResponse } from "next/server";
 
-interface MemoryRequest {
-  text?: string;
-}
-
-function isSingleUploadResult(
-  result: unknown,
-): result is { txHash: string; rootHash: string; txSeq: number } {
-  return (
-    typeof result === "object" &&
-    result !== null &&
-    "rootHash" in result &&
-    typeof (result as { rootHash: unknown }).rootHash === "string"
-  );
-}
+export const maxDuration = 120;
 
 export async function POST(request: Request) {
   try {
-    const body = (await request.json()) as MemoryRequest;
-    const text = body.text?.trim();
+    const contentType = request.headers.get("content-type") ?? "";
+    let text = "";
+    let imageFile: File | null = null;
+
+    if (contentType.includes("multipart/form-data")) {
+      const form = await request.formData();
+      text = String(form.get("text") ?? "").trim();
+      const imageField = form.get("image");
+
+      if (imageField instanceof File && imageField.size > 0) {
+        imageFile = imageField;
+      }
+    } else {
+      const body = (await request.json()) as { text?: string };
+      text = body.text?.trim() ?? "";
+    }
 
     if (!text) {
       return NextResponse.json({ error: "text is required" }, { status: 400 });
     }
 
-    const owner = await signer.getAddress();
-    const file = new MemData(new TextEncoder().encode(text));
+    if (imageFile) {
+      const validationError = validateImageUpload(imageFile);
+      if (validationError) {
+        return NextResponse.json({ error: validationError }, { status: 400 });
+      }
 
-    const [result, uploadError] = await indexer.upload(
-      file,
-      OG_RPC_URL,
-      signer,
-      {
-        encryption: {
-          type: "ecies",
-          recipientPubKey: signer.signingKey.publicKey,
-        },
-      },
-    );
-
-    if (uploadError || !result) {
-      throw uploadError ?? new Error("Upload failed");
+      if (imageFile.size > MAX_IMAGE_BYTES) {
+        return NextResponse.json(
+          { error: "Photo must be 4 MB or smaller." },
+          { status: 400 },
+        );
+      }
     }
 
-    const { rootHash, txHash } = isSingleUploadResult(result)
-      ? result
-      : {
-          rootHash: result.rootHashes[0],
-          txHash: result.txHashes[0],
-        };
+    const owner = await signer.getAddress();
+    const textUpload = await uploadEncryptedText(text);
 
-    if (!rootHash || !txHash) {
-      throw new Error("Upload did not return rootHash and txHash");
+    let imageUpload: { rootHash: string; txHash: string } | undefined;
+
+    if (imageFile) {
+      const buffer = Buffer.from(await imageFile.arrayBuffer());
+      imageUpload = await uploadEncryptedImage(buffer, imageFile.type);
     }
 
     const provenance = {
-      rootHash,
-      txHash,
+      rootHash: textUpload.rootHash,
+      txHash: textUpload.txHash,
       owner,
       createdAt: new Date().toISOString(),
+      ...(imageUpload
+        ? {
+            imageRootHash: imageUpload.rootHash,
+            imageTxHash: imageUpload.txHash,
+          }
+        : {}),
     };
 
     await appendMemory(provenance);
 
-    return NextResponse.json({ rootHash, txHash });
+    return NextResponse.json({
+      rootHash: textUpload.rootHash,
+      txHash: textUpload.txHash,
+      ...(imageUpload
+        ? {
+            imageRootHash: imageUpload.rootHash,
+            imageTxHash: imageUpload.txHash,
+          }
+        : {}),
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });

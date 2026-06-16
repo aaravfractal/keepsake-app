@@ -8,6 +8,8 @@ interface MemoryProvenance {
   txHash: string;
   owner: string;
   createdAt: string;
+  imageRootHash?: string;
+  imageTxHash?: string;
 }
 
 interface RecallProof {
@@ -47,15 +49,19 @@ function resolveSources(
   rootHashes: string[],
   memories: MemoryProvenance[],
 ): ResolvedSource[] {
-  const byRoot = new Map(
-    memories.map((memory) => [memory.rootHash.toLowerCase(), memory]),
-  );
-
   return rootHashes.map((rootHash) => {
-    const memory = byRoot.get(rootHash.toLowerCase());
+    const normalized = rootHash.toLowerCase();
+    const memory = memories.find(
+      (entry) =>
+        entry.rootHash.toLowerCase() === normalized ||
+        entry.imageRootHash?.toLowerCase() === normalized,
+    );
+
+    const isImage = memory?.imageRootHash?.toLowerCase() === normalized;
+
     return {
       rootHash,
-      txHash: memory?.txHash ?? null,
+      txHash: isImage ? (memory?.imageTxHash ?? null) : (memory?.txHash ?? null),
       createdAt: memory?.createdAt ?? null,
     };
   });

@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { ChangeEvent, FormEvent, useCallback, useEffect, useState } from "react";
 import ProvenanceSeal from "./ProvenanceSeal";
 import WaxSeal from "./WaxSeal";
 
@@ -9,6 +9,8 @@ interface MemoryProvenance {
   txHash: string;
   owner: string;
   createdAt: string;
+  imageRootHash?: string;
+  imageTxHash?: string;
 }
 
 interface RecallProof {
@@ -70,6 +72,10 @@ function formatMemoryDate(iso: string): string {
 
 export default function KeepsakeScreen() {
   const [memoryText, setMemoryText] = useState("");
+  const [memoryImage, setMemoryImage] = useState<File | null>(null);
+  const [memoryImagePreview, setMemoryImagePreview] = useState<string | null>(
+    null,
+  );
   const [memorySaving, setMemorySaving] = useState(false);
   const [savedVisible, setSavedVisible] = useState(false);
   const [saveStampKey, setSaveStampKey] = useState(0);
@@ -111,6 +117,30 @@ export default function KeepsakeScreen() {
     void loadMemories();
   }, [loadMemories]);
 
+  useEffect(() => {
+    if (!memoryImage) {
+      setMemoryImagePreview(null);
+      return;
+    }
+
+    const previewUrl = URL.createObjectURL(memoryImage);
+    setMemoryImagePreview(previewUrl);
+
+    return () => {
+      URL.revokeObjectURL(previewUrl);
+    };
+  }, [memoryImage]);
+
+  function handleImageChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0] ?? null;
+    setMemoryImage(file);
+    setMemoryError(null);
+  }
+
+  function clearSelectedImage() {
+    setMemoryImage(null);
+  }
+
   async function handleSaveMemory(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const text = memoryText.trim();
@@ -123,10 +153,15 @@ export default function KeepsakeScreen() {
     setSavedVisible(false);
 
     try {
+      const formData = new FormData();
+      formData.append("text", text);
+      if (memoryImage) {
+        formData.append("image", memoryImage);
+      }
+
       const response = await fetch("/api/memory", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
+        body: formData,
       });
 
       const data = (await response.json()) as { error?: string };
@@ -136,6 +171,7 @@ export default function KeepsakeScreen() {
       }
 
       setMemoryText("");
+      setMemoryImage(null);
       setSavedVisible(true);
       setSaveStampKey((key) => key + 1);
       await loadMemories();
@@ -218,6 +254,38 @@ export default function KeepsakeScreen() {
                 rows={4}
                 className="w-full resize-none bg-transparent px-5 py-4 font-reading text-[1.0625rem] leading-[1.7] text-foreground placeholder:text-muted/75 focus:outline-none"
               />
+              <div className="border-t border-mist/80 px-4 py-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  <label className="cursor-pointer rounded-sm border border-mist px-3 py-2 text-sm text-muted transition-colors hover:bg-leaf/70 hover:text-foreground">
+                    Add a photo
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      className="sr-only"
+                      onChange={handleImageChange}
+                    />
+                  </label>
+                  {memoryImage ? (
+                    <button
+                      type="button"
+                      onClick={clearSelectedImage}
+                      className="text-sm text-muted transition-colors hover:text-foreground"
+                    >
+                      Remove photo
+                    </button>
+                  ) : null}
+                </div>
+                {memoryImagePreview ? (
+                  <div className="mt-3">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={memoryImagePreview}
+                      alt="Selected memory photo"
+                      className="h-20 w-20 rounded-sm border border-mist object-cover"
+                    />
+                  </div>
+                ) : null}
+              </div>
               <div className="flex items-center justify-between gap-3 border-t border-mist/80 px-4 py-3">
                 <div className="min-h-10 flex-1">
                   {savedVisible ? (
@@ -288,6 +356,14 @@ export default function KeepsakeScreen() {
                         )}
                       </span>
                       <LockIcon className="h-3.5 w-3.5 shrink-0 text-brass" />
+                      {memory.imageRootHash ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={`/api/memory/thumbnail/${encodeURIComponent(memory.imageRootHash)}`}
+                          alt=""
+                          className="h-10 w-10 shrink-0 rounded-sm border border-mist object-cover"
+                        />
+                      ) : null}
                       <time
                         dateTime={memory.createdAt}
                         className="text-[0.9375rem] tracking-[0.01em] text-foreground/90"

@@ -29,6 +29,8 @@ export interface MemoryProvenance {
   txHash: string;
   owner: string;
   createdAt: string;
+  imageRootHash?: string;
+  imageTxHash?: string;
 }
 
 export async function readMemories(): Promise<MemoryProvenance[]> {
